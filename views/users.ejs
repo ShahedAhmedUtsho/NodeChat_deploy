@@ -1,0 +1,307 @@
+<%- include('./Partials/header.ejs') %>
+    <style>
+        .conversation {
+            background-image: url('https://res.cloudinary.com/dxpdy0jfz/image/upload/f_auto,q_auto/ywpa9i5e2i0kzalbpavw');
+            background-attachment: fixed;
+            background-position: center;
+            background-size: 300px 300px;
+        }
+    </style>
+
+    <body class="bg-[#121212] conversation text-gray-200 min-h-screen flex flex-col">
+        <!-- Manage Users Container -->
+        <div class="manageUser-container  mx-auto p-6 mt-8 w-5/6 ">
+            <div id="title" class="mb-6 text-center flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-100">Manage Users</h2>
+                <!-- Add New User Button -->
+                <div class=" hover:bg-white/20 rounded-full w-8 h-8 flex justify-center items-center ">
+                    <svg onclick="openModal()" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="lucide lucide-user-plus">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <line x1="19" x2="19" y1="8" y2="14" />
+                        <line x1="22" x2="16" y1="11" y2="11" />
+                    </svg>
+                </div>
+            </div>
+            <!-- Users Table -->
+            <div id="users-table  ">
+                <table class="w-full text-left border-2 rounded-lg overflow-hidden  table-fixed ">
+                    <thead class="text-white rounded-t-lg">
+                        <tr class="bg-gray-700/40 text-start rounded-t-lg">
+                            <th class="p-4  text-start rounded-t-lg">Name</th>
+                            <th class="p-4 text-start">Email</th>
+                            <th class="p-4 flex justify-end text-right">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="lucide lucide-chart-no-axes-gantt">
+                                    <path d="M8 6h10" />
+                                    <path d="M6 12h9" />
+                                    <path d="M11 18h7" />
+                                </svg>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-body" class="bg-gray-800/40 rounded-t-lg">
+                        <!-- Repeat rows for other users -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Modal -->
+        <%- include('./Partials/addUserModel.ejs') %>
+            <%- include('./Partials/deleteUser.ejs') %>
+                <!-- Scripts for Modal -->
+                <script>
+                    const form = document.querySelector('#add-user-form');
+                    const onSubmit = async (event) => {
+                        event.preventDefault();
+
+                        document.querySelectorAll('.error').forEach((element) => element.classList.add('hidden'));
+
+
+
+
+                        const formData = new FormData(form);
+
+
+                        let response = await fetch('/users', {
+                            method: 'POST',
+                            body: formData,
+                        })
+                        const result = await response.json();
+                        let errorElementClass = [];
+                        if (result?.errors) {
+
+                            const errors = result?.errors;
+
+                            if (errors?.name) {
+                                errorElementClass.push('name-error');
+                                document.getElementById('name-error').innerText = errors.name.msg
+
+
+                            }
+                            if (errors?.email) {
+                                errorElementClass.push('email-error')
+                                document.getElementById('email-error').innerText = errors.email.msg
+
+                            }
+                            if (errors?.mobile) {
+                                errorElementClass.push('mobile-error')
+                                document.getElementById('mobile-error').innerText = errors.mobile.msg
+
+                            }
+                            if (errors?.password) {
+
+                                errorElementClass.push('password-error')
+                                document.getElementById('password-error').innerText = errors.password.msg
+                            }
+                            if (errors?.common) {
+
+                                errorElementClass.push('common-error')
+                                document.getElementById('common-error').innerText = errors.common.message
+                            }
+
+
+
+
+
+                            errorElementClass.forEach(element => {
+
+                                const ErrorElement = document.querySelector(`.${element}`);
+
+
+                                ErrorElement.classList.remove('hidden');
+
+
+                            })
+
+
+
+
+
+
+
+                        } else {
+
+                            closeModal();
+                            Toastify({
+                                text: "User successfully created!",
+                                duration: 1000,
+                                close: true,
+                                gravity: "bottom",
+                                position: "right",
+                                backgroundColor: "#4B20B2",
+                            }).showToast();
+                            setTimeout(() => {
+                                location.reload()
+                            }, 1000)
+
+
+                        }
+
+
+
+
+                    }
+                    form.addEventListener('submit', onSubmit)
+
+
+
+
+
+
+                    const modal = document.querySelector("#add-user-modal");
+
+                    function closeModal() {
+                        modal.classList.add('hidden');
+                    }
+
+                    function openModal() {
+                        modal.classList.remove('hidden');
+                    }
+                </script>
+                <script>
+                    const getUsers = async () => {
+                        const userBody = document.getElementById('user-body')
+
+                        try {
+                            const res = await fetch('/users/all')
+                            const data = await res.json();
+
+
+                            if (data && data.length > 0) {
+                                data.forEach(user => {
+
+                                    const row = document.createElement('tr');
+                                    row.classList.add('text-center', 'hover:bg-gray-800/50', 'transition')
+
+                                    row.id = user._id;
+                                    const avatarPath = `/uploads/avatar/${user.avatar}`
+                                    row.innerHTML = `
+        
+              <td class="flex items-center justify-start p-4  ">
+                 <div class"flex justify-start items-center w-full ">
+                   <img src="${avatarPath}" class="w-10 h-10 rounded-full  mr-2 object-cover " alt="avatar" />
+                  
+                  </div>
+                  <span>${user.name}</span> 
+              </td>
+              <td class="p-4 text-start  ">${user.email}</td>
+              <td class="p-4">
+                  <div class="w-full flex  justify-end h-6 cursor-pointer  "> <button id="${user._id}_delete" class="delete"> <svg   xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg><button></div>
+                  
+              </td>`
+                                    userBody.appendChild(row)
+                                })
+                            }
+
+
+                            const deleteButton = document.querySelectorAll('.delete');
+                            const deleteModelOpen = (event) => {
+
+                                deleteUserID = event.currentTarget.id;
+                              
+                                user_delete_model.classList.remove('hidden')
+
+
+                            }
+                            if (deleteButton && deleteButton?.length > 0) {
+
+                                deleteButton.forEach((button) => {
+                                    
+                                    button.addEventListener('click', deleteModelOpen)
+
+
+                                })
+                            }
+
+
+                        } catch (error) {
+                            console.log(error)
+
+                        }
+
+                    }
+
+                    getUsers()
+
+
+                </script>
+                <script>
+                    const deleteCancel = document.getElementById('delete-cancel');
+
+                    const user_delete_model = document.getElementById('user-delete-model');
+
+
+                    const deleteModelClose = () => {
+                        user_delete_model.classList.add('hidden')
+
+                    }
+
+
+                    deleteCancel.addEventListener('click', deleteModelClose)
+
+
+
+
+
+
+
+                </script>
+
+                <script>
+                    let deleteUserID
+                    const user_delete_button = document.getElementById('user_delete_button');
+
+                    user_delete_button.addEventListener('click', async () => {
+                        try {
+                            const id = await deleteUserID.split("_")[0];
+                         
+
+
+
+                            const response = await fetch('/users', {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json'
+
+                                },
+                                body: JSON.stringify({ id: id })
+                            })
+                            if (response.ok) {
+                                console.log("user delete  Successfully");
+
+                                Toastify({
+                                    text: "User successfully Deleted!",
+                                    duration: 1000,
+                                    close: true,
+                                    gravity: "bottom",
+                                    position: "right",
+                                    backgroundColor: "#4B20B2",
+                                }).showToast();
+
+                                document.getElementById(id).remove()
+                                // setTimeout(() => {
+                                //     location.reload()
+                                // }, 1000)
+
+                            } else {
+                                const result = await response.json();
+                                
+                            }
+                        } catch (error) {
+                            console.log("error deleting user", error);
+                        } finally {
+                            deleteModelClose();
+                        }
+
+                    })
+
+                </script>
+
+
+
+
+    </body>

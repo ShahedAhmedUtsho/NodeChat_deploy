@@ -1,0 +1,700 @@
+<div class="modal-wrapper hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+    id="add-chat-modal">
+    <div class="modal bg-[#121212] rounded-lg shadow-lg p-8 w-full max-w-lg relative">
+        <a id="close-add-chat-modal"
+            class="modal-close text-gray-400 hover:text-white text-3xl absolute top-4 right-6 transition duration-200">x</a>
+        <div class="modal-title mb-6 text-center">
+            <h2 class="text-3xl font-semibold text-gray-100 text-start">Start conversation</h2>
+        </div>
+        <div class="modal-body">
+            <form action="/chats" method="post" id="add-chat-form" class="space-y-6">
+                <div>
+                    <!-- User search input -->
+                    <input type="text" placeholder="Search by username" name="search_user_1" id="search_user_1"
+                        class="w-full p-3 rounded-lg bg-gray-800 text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-[#4B20B2] focus:outline-none transition duration-200" />
+                    <!-- Error message for username -->
+                    <p id="username-error" class="error username-error hidden text-sm text-red-500 mt-1">Please enter a
+                        valid username.</p>
+                </div>
+
+                <div>
+                    <!-- User search results container -->
+                    <div id="user_search_results_box" class="space-y-4 max-h-80 overflow-y-scroll">
+                        <!-- User search results will be shown here -->
+                    </div>
+                </div>
+
+                <!-- Common error message -->
+                <p id="common-error" class="error common-error hidden text-sm text-red-500 mt-4">Please correct the
+                    errors above before submitting.</p>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    function scrollToBottom(chatBox) {
+       
+
+       
+        if (chatBox) {
+            
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+            console.log('No chat box found');
+        }
+    }
+</script>
+<script>
+    let searched_user;
+    const user_search_results_box = document.getElementById('user_search_results_box');
+    const user_Search_input = document.getElementById('search_user_1');
+    let userFindTimeOut;
+
+    // Handle user search input with a timeout to prevent multiple requests
+    user_Search_input.addEventListener('input', () => {
+        clearTimeout(userFindTimeOut);
+        user_search_results_box.innerHTML = ''; // Clear previous results
+        document.getElementById('common-error').classList.add('hidden'); // Hide common error
+
+        const user_Search_input_value = user_Search_input.value;
+        if (user_Search_input_value.length >= 3) {
+            userFindTimeOut = setTimeout(async () => {
+                // Fetch matching users based on input
+                const response = await fetch('/inbox/find_match_users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ search_user_text: user_Search_input_value })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // If users are found, display them in the results box
+                    if (result?.users?.length > 0) {
+                        const users = result.users;
+                        users?.forEach(user => {
+                            let userDev = document.createElement('div');
+                            userDev.id = user._id;
+                            userDev.classList = 'flex items-center space-x-4 p-3 bg-gray-800 searched_user rounded-lg';
+
+                            // User card with avatar and name/email
+                            userDev.innerHTML = `
+                             <img src=${'/uploads/avatar/' + user.avatar} alt="User Avatar" class="w-10 h-10 object-cover rounded-full">
+                            <div>
+                                <p class="text-gray-200 font-semibold">${user.name}</p>
+                                <p class="text-gray-400 text-sm">${user.email}</p>
+                            </div>
+                            `;
+                          
+                            user_search_results_box.appendChild(userDev);
+                        });
+
+                        // Add click event to each user to start conversation
+                        document.querySelectorAll('.searched_user').forEach(user => {
+                            user.addEventListener('click', (event) => {
+                              
+                                const clicked_user = event.currentTarget.id;
+                                StartChat(clicked_user);
+                            });
+                        });
+                    } else {
+                        console.log('No user found');
+                    }
+                }
+            }, 500); // Delay for input debounce
+        }
+    });
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+
+
+
+    async function StartChat(id) {
+       
+
+        // Create a chat with the selected user
+        const response = await fetch('/inbox/create_chats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ search_user_1: id })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+
+            document.getElementById('add-chat-modal').classList.add('hidden');
+       
+
+
+
+            chatFetchFn();
+            user_search_results_box.innerHTML = '';
+            user_Search_input.value = '';
+
+
+
+
+
+        } else {
+            // Error: Display common error message 
+          
+            document.getElementById('common-error').classList.remove('hidden');
+            document.getElementById('common-error').textContent = result.message || 'An error occurred. Please try again.';
+        }
+    };
+</script>
+
+<script>
+    const chatFetchFn = async () => {
+        try {
+            const response = await fetch('/inbox/get_Conversation_list', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+
+            });
+            const data = await response.json();
+            if (data.length > 0) {
+                const conversation_list_div = document.getElementById('conversation_list');
+                
+
+
+                conversation_list_div.innerHTML = ` 
+
+                    ${data.map((user) => {
+
+
+                    return (`<div id=${user._id} class="flex items-center chat_items space-x-4 p-4 rounded-lg bg-gray-700 hover:bg-gray-600 transition">
+                        <div
+                            class="border border-black/10 flex justify-center items-center bg-white/10 rounded-full w-10 h-10">
+                           <img src=${'/uploads/avatar/' + user.receiver.avatar} alt="User Avatar" class=" w-8 h-8 object-cover rounded-full">
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-semibold">${user.receiver.name}</div>
+                            <div class="text-sm text-gray-400">${user.receiver.email}</div>
+                        </div>
+                       
+                    </div> `)
+
+                }).join('')}
+                    `
+                const chat_items = document.querySelectorAll('.chat_items');
+                chat_items.forEach(chat_item => {
+                    chat_item.addEventListener('click', () => {
+                        const chat_item_id = chat_item.id;
+                        renderCheck(data.find(user => user._id === chat_item_id))
+                    })
+
+                })
+            }
+
+        } catch (error) {
+            console.log(error)
+
+        }
+
+
+    }
+
+
+
+
+</script>
+
+
+
+
+
+
+<script>
+    let openChatId = null;
+
+
+    async function chatDeleteFn() {
+
+        const chatId = openChatId;
+        try {
+            const response = await fetch(`/inbox/delete_chat?id=${chatId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                chat_delete_Model.classList.add('hidden');
+                
+                const removeChat = document.getElementById(chatId);
+               
+                removeChat.remove();
+                inbox_right_box.innerHTML = ` <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-message-circle">
+                        <path
+                            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z">
+                        </path>
+                    </svg>
+                    <p class="mt-4 text-lg">Select a chat to start a conversation</p>
+                </div>`;
+
+
+
+
+                Toastify({
+                    text: "Chat deleted successfully!",
+                    duration: 1000,
+                    close: true,
+                    gravity: "bottom",
+                    position: "right",
+                    backgroundColor: "#4B20B2",
+                }).showToast();
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            } else {
+                console.log('Failed to delete chat');
+            }
+        } catch (error) {
+            console.error('Error deleting chat:', error);
+        }
+    }
+
+
+
+
+
+</script>
+
+<script>
+    const inbox_right_box = document.getElementById('inbox_right_box');
+
+
+
+    const renderCheck = async (chat) => {
+
+        // Show loader while fetching conversation
+        inbox_right_box.innerHTML = `
+    <div class="flex-1 flex flex-col">
+        <!-- Chat Header Skeleton -->
+        <div class="p-4 bg-gray-700/20 flex justify-between items-center">
+            <div class="h-6 bg-gray-400 rounded w-1/4 animate-pulse"></div>
+            <div class="h-8 w-8 bg-gray-400 rounded-full animate-pulse"></div>
+        </div>
+
+        <!-- Chat Messages Skeleton -->
+        <div class="flex-1 p-4 space-y-4 overflow-y-auto  ">
+            <!-- Incoming Message Skeleton -->
+            <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 bg-gray-400 rounded-full animate-pulse"></div>
+                <div class="bg-gray-600   max-w-96 p-4 rounded-lg text-gray-200 flex-1 space-y-2 animate-pulse">
+                    <div class="h-4 bg-gray-500 rounded animate-pulse"></div>
+                    <div class="h-3 w-1/4 bg-gray-500 rounded mt-2 animate-pulse"></div>
+                </div>
+            </div>
+
+            <!-- Outgoing Message Skeleton -->
+            <div class="flex justify-end items-end space-x-4">
+                <div class="bg-gray-600 p-4 rounded-lg text-gray-200 max-w-72 flex-1 space-y-2 animate-pulse">
+                    <div class="h-4 bg-gray-500 rounded animate-pulse"></div>
+                    <div class="h-3 w-1/4 bg-gray-500 rounded mt-2 animate-pulse"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Form Skeleton -->
+        <div class="p-4 flex gap-2 items-center">
+            <div class="w-6 h-6 bg-gray-400 rounded-full animate-pulse"></div>
+            <div class="flex-1 h-10 bg-gray-400 rounded-lg animate-pulse"></div>
+            <div class="w-6 h-6 bg-gray-400 rounded-full animate-pulse"></div>
+        </div>
+    </div>
+`;
+
+
+
+
+
+
+
+
+
+
+        try {
+            const res = await fetch('/inbox/get_conversation_by_id', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: chat._id
+                })
+            })
+
+
+            if (res) {
+                const newChat = await res.json();
+
+
+                try {
+                    const message_response = await fetch('/inbox/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            id: newChat._id
+                        })
+                    })
+
+                    const messages = await message_response.json();
+
+
+                   
+
+                    openChatPersonID = newChat.receiver._id;
+
+
+
+
+                    inbox_right_box.innerHTML = await `  <div class="flex-1   max-h-screen flex flex-col">
+        <!-- Chat Header -->
+        <div  class="p-4 bg-gray-700/20 flex justify-between  items-center">
+            <div class="flex items-center space-x-4">
+                <img src="${"/uploads/avatar/" + newChat.receiver.avatar}" alt="User Avatar" class="w-10 h-10 object-cover rounded-full">
+                <div>
+                    <p class="text-gray-200 font-semibold">${newChat.receiver.name}</p>
+                    <p class="text-gray-400 text-sm">${newChat.receiver.email}</p>
+                </div>
+            </div>
+           <!-- <span  class="text-xl font-semibold">${newChat.receiver.name}</span> -->
+            <div   class="hover:bg-white/20 rounded-full p-1">
+                <svg  id="chat_delete_Model_open"  xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" class="lucide lucide-trash-2">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    <line x1="10" x2="10" y1="11" y2="17" />
+                    <line x1="14" x2="14" y1="11" y2="17" />
+                </svg>
+            </div>
+        </div>
+
+       
+                <!-- Chat Messages -->
+        <div  id="chat_Ground" class=" h-full p-4 space-y-4 overflow-y-scroll flex flex-col ">
+
+${messages.length > 0 ? `
+           
+                
+                
+                ${messages.map(message => {
+                        if (newChat?.receiver?.email === message?.sender?.email) {
+                            return (`
+                         <div class="flex items-start space-x-4 "> 
+                         <div
+                    class="border border-black/10 flex justify-center items-center bg-white/10 rounded-full w-10 h-10">
+
+<img src="${"/uploads/avatar/" + message.sender.avatar}" alt="User Avatar" class=" w-full h-full object-cover rounded-full">
+
+
+
+                    
+                </div>
+                        <div class="bg-gray-600 max-w-[40%] p-4 text-sm rounded-lg text-gray-200">
+                            <p class="leading-5">${message.message}</p>
+                            <small class="block text-gray-400 leading-none mt-2"> ${moment(message.createdAt).fromNow()}  </small> 
+                       </div>
+                      
+                     </div>
+                 
+
+               
+
+                    
+                    `)
+                        }
+                        else {
+                            return (`
+                         <div class="flex  justify-end  space-x-4  "> 
+                        
+                        <div class="bg-[#4F45E4] max-w-[40%] p-4 text-sm rounded-lg text-gray-200">
+                            <p class="leading-5">${message.message}</p>
+                            <small class="block text-gray-400 leading-none mt-2">${moment(message.createdAt).fromNow()} </small> 
+                       </div>
+                      
+                     </div>
+                 
+
+               
+
+                    
+                    `)
+
+                        }
+
+                    }).join('')
+                            }
+                
+                
+                
+                
+                ` : `
+                
+               
+                        <div id="no_message_template" class="flex no_message_template items-center space-x-2 p-4 bg-gray-700/20 rounded-lg shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle-more text-gray-400">
+                                <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
+                                <path d="M8 12h.01"/>
+                                <path d="M12 12h.01"/>
+                                <path d="M16 12h.01"/>
+                            </svg>
+                            <span class="text-gray-200 font-semibold">Start conversation</span>
+                        </div>
+
+     `
+
+                        }
+
+ </div>
+
+
+ 
+
+
+
+
+                           <!-- Chat Form -->
+        <div class="p-4 flex gap-2 items-center">
+            <div class="flex justify-center items-center w-6 h-6 mr-4 cursor-pointer">
+            <img src="${"/uploads/avatar/" + newChat.sender.avatar}" alt="User Avatar" class="w-6 h-6 object-cover rounded-full">
+            </div>
+
+          
+              <input id="message_inbox_form_input" type="text" placeholder="Type a message"
+                class="flex-1 p-2 rounded-lg bg-gray-600 text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500" />
+            <button  id="message_inbox_form_submit" class="flex justify-center items-center w-6 h-6 mx-2 cursor-pointer">
+                <svg  class="hover:animate-pulse" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
+                    <path
+                        d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
+                    <path d="m21.854 2.147-10.94 10.939" />
+                </svg>
+            </button>
+            
+        </div>
+    </div>
+
+      ` ;
+
+
+
+                    const chatBox = document.getElementById('chat_Ground');
+                    scrollToBottom(chatBox)
+                    if (chatBox) {
+                        setTimeout(() => {
+                            scrollToBottom(chatBox)
+                        }, 10)
+                    }
+                    else {
+                        console.log('No chat box found');
+                    }
+
+
+
+                }
+                catch (error) {
+                    console.log(error.message)
+                }
+
+                const chat_Ground = document.getElementById('chat_Ground');
+
+                StartConversation(newChat._id);
+
+                const message_inbox_form_input = document.getElementById('message_inbox_form_input');
+                // const message_inbox_form_input_value = message_inbox_form_input.value;
+                const message_inbox_form_submit = document.getElementById('message_inbox_form_submit');;
+                // Scroll to bottom of chat not working
+
+                message_inbox_form_submit.addEventListener('click', () => {
+                    if (message_inbox_form_input.value === '') return;
+                    newChat.message = message_inbox_form_input.value
+
+                    messageSendFn(newChat)
+                });
+
+            }
+
+
+
+
+        } catch (error) {
+            console.log(error)
+
+        }
+        finally {
+
+            const chat_delete_Model_open = document.getElementById('chat_delete_Model_open');
+            const chat_delete_Model = document.getElementById('chat_delete_Model');
+            const chat_delete_cancel = document.getElementById('chat_delete-cancel');
+            const chat_delete_button = document.getElementById('chat_delete_button');
+
+            chat_delete_Model_open.addEventListener('click', () => {
+             
+
+                chat_delete_Model.classList.remove('hidden');
+            });
+
+            chat_delete_cancel.addEventListener('click', () => {
+                chat_delete_Model.classList.add('hidden');
+            });
+            chat_delete_button.addEventListener('click', chatDeleteFn);
+        }
+
+
+
+
+
+    }
+
+
+
+
+</script>
+<script>
+    let openChatPersonID = null
+
+
+    var socket = io();
+
+    async function StartConversation(id) {
+        openChatId = id;
+       
+        socket.emit('join-room', id);
+    }
+
+
+    socket.on('receive-message', (message) => {
+
+
+        removeNoMessageTemplate()
+
+
+   
+        const chat_Ground = document.getElementById('chat_Ground');
+        const newMessage = document.createElement('div');
+        newMessage.classList = 'flex items-start space-x-4';
+        let ReceiveHtml
+
+        if (message?.sender === openChatPersonID) {
+
+            ReceiveHtml = `<div class="flex items-start space-x-4 w-full "> 
+                         <div
+                    class="border border-black/10 flex justify-center items-center bg-white/10 rounded-full w-10 h-10">
+
+<img src="${"/uploads/avatar/" + message.avatar}" alt="User Avatar" class=" w-full h-full object-cover rounded-full">
+
+
+
+                    
+                </div>
+                        <div class="bg-gray-600 max-w-[40%] p-4 text-sm rounded-lg text-gray-200">
+                            <p class="leading-5">${message.message}</p>
+                            <small class="block text-gray-400 leading-none mt-2">${moment(message.timeNow).fromNow()} </small> 
+                       </div>
+                      
+                     </div>
+                 
+
+               
+
+                    
+                    `
+        }
+        else {
+            ReceiveHtml = `
+                         <div class="flex  justify-end  space-x-4 w-full  "> 
+                        
+                        <div class="bg-[#4F45E4] max-w-[40%] p-4 text-sm  rounded-lg text-gray-200">
+                            <p class="leading-5">${message.message}</p>
+                            <small class="block text-gray-400 leading-none mt-2">${moment(message.timeNow).fromNow()}</small> 
+                       </div>
+                      
+                     </div>
+                 
+
+               
+
+                    
+                    `
+
+        }
+
+
+        newMessage.innerHTML = ReceiveHtml;
+
+        chat_Ground.appendChild(newMessage);
+        scrollToBottom(document.getElementById('chat_Ground'))
+
+
+
+
+    });
+
+    function removeNoMessageTemplate() {
+
+        document.querySelectorAll('.no_message_template')?.forEach(element => {
+            element.remove();
+        });
+    }
+
+    function messageSendFn(newChat) {
+        console.log("sending message")
+
+        removeNoMessageTemplate()
+
+
+
+        const newMessage = {
+            avatar: newChat.sender.avatar,
+            message: newChat.message,
+            chatId: newChat._id,
+            senderId: newChat.sender._id,
+            receiverId: newChat.receiver._id,
+
+        }
+      
+
+        socket.emit('send-message', newMessage);
+        message_inbox_form_input.value = '';
+
+    }
+
+
+
+
+
+
+</script>
